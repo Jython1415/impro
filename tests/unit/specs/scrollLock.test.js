@@ -208,6 +208,27 @@ describe("ScrollLock", () => {
     });
   });
 
+  it("resolves whenUnlocked immediately when no lock is held", async () => {
+    await scrollLocks.whenUnlocked();
+  });
+
+  it("resolves whenUnlocked only after the last lock is released and scroll is restored", async () => {
+    const menuLock = createLock();
+    const dialogLock = createLock();
+    let positionWhenResolved = null;
+    const unlocked = scrollLocks.whenUnlocked().then(() => {
+      positionWhenResolved = document.body.style.position;
+    });
+
+    menuLock.release();
+    await Promise.resolve();
+    assert.equal(positionWhenResolved, null);
+
+    dialogLock.release();
+    await unlocked;
+    assert.equal(positionWhenResolved, "");
+  });
+
   it("restores a locked scrollable ancestor's overflow on unlock", () => {
     const scrollable = document.createElement("div");
     scrollable.style.overflowY = "auto";

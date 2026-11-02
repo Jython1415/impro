@@ -1483,6 +1483,70 @@ test.describe("Home view", () => {
       ).toBeVisible({ timeout: 10000 });
     });
 
+    test("should scroll the feedback message into view when Show Less is sent on a post scrolled partly off screen", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feed = createFeedGenerator({
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/myfeed",
+        displayName: "My Feed",
+        creatorHandle: "creator1.bsky.social",
+      });
+      feed.acceptsInteractions = true;
+      const tallPost = createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/tall",
+        text: "A tall post\n".repeat(60),
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+      // Enough posts below that the page stays scrollable once the tall post collapses
+      const nextPosts = Array.from({ length: 10 }, (_, i) =>
+        createPost({
+          uri: `at://did:plc:author2/app.bsky.feed.post/next${i}`,
+          text: "A tall post\n".repeat(10),
+          authorHandle: "author2.bsky.social",
+          authorDisplayName: "Author Two",
+        }),
+      );
+      mockServer.addFeedGenerators([feed]);
+      mockServer.setPinnedFeeds([feed.uri]);
+      mockServer.addFeedItems(feed.uri, [tallPost, ...nextPosts]);
+      await mockServer.setup(page);
+      // Phone size, where the menu is a bottom sheet that releases its scroll
+      // lock after its exit animation
+      await page.setViewportSize({ width: 375, height: 667 });
+
+      await login(page);
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await view.locator(".tab-bar-button", { hasText: "My Feed" }).click();
+
+      const visibleFeed = view.locator(".feed-container:not([hidden])");
+      await expect(
+        visibleFeed.locator('[data-testid="feed-item"]'),
+      ).toHaveCount(11, { timeout: 10000 });
+
+      // Scroll so the tall post's top is above the viewport and its actions are visible
+      const tallItem = visibleFeed.locator(
+        `[data-testid="feed-item"][data-post-uri="${tallPost.uri}"]`,
+      );
+      await tallItem.evaluate((element) => {
+        const { top, bottom } = element.getBoundingClientRect();
+        window.scrollBy(0, bottom - window.innerHeight + 100);
+        if (element.getBoundingClientRect().top >= 0) {
+          throw new Error(`Post is not tall enough: ${top}-${bottom}`);
+        }
+      });
+
+      await tallItem.locator(".text-button").click();
+      await page.locator('[data-testid="menu-action-post-show-less"]').click();
+
+      await expect(
+        visibleFeed.locator('[data-testid="feed-feedback-message"]'),
+      ).toBeInViewport({ timeout: 10000 });
+    });
+
     test("should send Show More interaction and show toast", async ({
       page,
     }) => {

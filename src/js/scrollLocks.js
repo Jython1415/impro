@@ -110,6 +110,7 @@ class ScrollLockManager {
   #getContainer = null;
   #leases = new Set();
   #lockState = null;
+  #unlockWaiters = [];
 
   setContainerProvider(getContainer) {
     this.#getContainer = getContainer;
@@ -134,6 +135,11 @@ class ScrollLockManager {
         unlockScroll(this.#lockState, { restoreScroll });
         this.#lockState = null;
       }
+      if (this.#leases.size === 0) {
+        const waiters = this.#unlockWaiters;
+        this.#unlockWaiters = [];
+        waiters.forEach((resolve) => resolve());
+      }
     };
 
     if (this.#leases.size === 0) {
@@ -157,6 +163,14 @@ class ScrollLockManager {
     }
 
     return { release };
+  }
+
+  // Resolves once no lock is held and the scroll position has been restored
+  whenUnlocked() {
+    if (this.#leases.size === 0) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => this.#unlockWaiters.push(resolve));
   }
 }
 

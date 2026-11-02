@@ -22,8 +22,9 @@ import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore, SignalSet } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
 import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
-import { TabScrollMemory, StickyFixer } from "/js/utils.js";
+import { TabScrollMemory, StickyFixer, raf } from "/js/utils.js";
 import { tryAgainButtonTemplate } from "/js/templates/tryAgainButton.template.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 
 const requestIdle =
   window.requestIdleCallback?.bind(window) ??
@@ -117,6 +118,10 @@ export default async function homeView({
       feedContext,
       getFeedGeneratorProxyUrl(feedGenerator),
     );
+    // Wait for the feedback message to render, and for the menu to release its
+    // scroll lock (which restores the scroll position)
+    await raf();
+    await scrollLocks.whenUnlocked();
     // Scroll to keep the feedback message in view (it might be hidden by the header, but that's okay)
     const feedFeedbackMessageElement = root.querySelector(
       `.feed-item[data-feed-generator-uri="${feedGenerator.uri}"] .feed-feedback-message[data-post-uri="${post.uri}"]`,
