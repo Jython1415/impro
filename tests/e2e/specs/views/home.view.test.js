@@ -1542,9 +1542,19 @@ test.describe("Home view", () => {
       await tallItem.locator(".text-button").click();
       await page.locator('[data-testid="menu-action-post-show-less"]').click();
 
-      await expect(
-        visibleFeed.locator('[data-testid="feed-feedback-message"]'),
-      ).toBeInViewport({ timeout: 10000 });
+      const feedbackMessage = visibleFeed.locator(
+        '[data-testid="feed-feedback-message"]',
+      );
+      await expect(feedbackMessage).toBeInViewport({ timeout: 10000 });
+      // Not hidden behind the sticky header
+      const headerBottom = await view
+        .locator("header")
+        .first()
+        .evaluate((element) => element.getBoundingClientRect().bottom);
+      const messageTop = await feedbackMessage.evaluate(
+        (element) => element.getBoundingClientRect().top,
+      );
+      expect(messageTop).toBeGreaterThanOrEqual(headerBottom - 1);
     });
 
     test("should send Show More interaction and show toast", async ({

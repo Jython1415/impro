@@ -99,13 +99,16 @@ export default async function homeView({
     layout.openSidebar();
   }
 
-  // When supported, replace with: https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoViewIfNeeded
+  // Like https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoViewIfNeeded,
+  // but treats the area behind the sticky header as hidden and scrolls the
+  // element to just below it
   function scrollIntoViewIfNeeded(element) {
-    const isVisible =
-      element.getBoundingClientRect().top < window.innerHeight &&
-      element.getBoundingClientRect().bottom > 0;
+    const headerBottom =
+      root.querySelector("header")?.getBoundingClientRect().bottom ?? 0;
+    const { top, bottom } = element.getBoundingClientRect();
+    const isVisible = top < window.innerHeight && bottom > headerBottom;
     if (!isVisible) {
-      element.scrollIntoView();
+      window.scrollBy(0, top - headerBottom);
     }
   }
 
@@ -122,7 +125,7 @@ export default async function homeView({
     // scroll lock (which restores the scroll position)
     await raf();
     await scrollLocks.whenUnlocked();
-    // Scroll to keep the feedback message in view (it might be hidden by the header, but that's okay)
+    // Scroll to keep the feedback message in view, below the header
     const feedFeedbackMessageElement = root.querySelector(
       `.feed-item[data-feed-generator-uri="${feedGenerator.uri}"] .feed-feedback-message[data-post-uri="${post.uri}"]`,
     );
